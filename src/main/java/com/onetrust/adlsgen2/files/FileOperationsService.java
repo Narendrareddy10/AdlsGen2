@@ -1,5 +1,7 @@
 package com.onetrust.adlsgen2.files;
 
+import com.azure.core.credential.TokenCredential;
+import com.azure.identity.ClientSecretCredentialBuilder;
 import com.azure.storage.common.StorageSharedKeyCredential;
 import com.azure.storage.file.datalake.DataLakeDirectoryClient;
 import com.azure.storage.file.datalake.DataLakeFileSystemClient;
@@ -36,6 +38,9 @@ public class FileOperationsService {
     public String accountFqdn;
     @Value("${client-id}")
     public String clientId;
+
+    @Value("${tenant-id}")
+    public String tenantId;
     @Value("${client-secret}")
     public String clientSecret;
 
@@ -82,20 +87,29 @@ public class FileOperationsService {
     private void saveFileToGen2(final String fileName) {
         final DataLakeServiceClient dataLakeServiceClient = getDataLakeServiceClient();
        final DataLakeServiceProperties dataLakeServiceProperties= dataLakeServiceClient.getProperties();
-       final DataLakeFileSystemClient fileSystemClient = dataLakeServiceClient.getFileSystemClient(fileName);
+       final DataLakeFileSystemClient fileSystemClient = dataLakeServiceClient.getFileSystemClient(/*fileName*/"loadnow");
        final DataLakeDirectoryClient directoryClient =fileSystemClient.getDirectoryClient(this.adlsPath);
 
     }
 
     private DataLakeServiceClient getDataLakeServiceClient(){
-        final String accountName="dlsazewddatalakecleansed";
+        final String accountName=this.accountFqdn;
         final String accountKey=this.clientId;
+        //DefaultAzureCredential defaultCredential = new DefaultAzureCredentialBuilder().build();
+
         StorageSharedKeyCredential sharedKeyCredential =
                 new StorageSharedKeyCredential(accountName, Base64.getEncoder().encodeToString(accountKey.getBytes()));
+
+        TokenCredential tokenCredential = new ClientSecretCredentialBuilder()
+                .clientId(clientId)
+                .tenantId(tenantId)
+                .clientSecret(clientSecret)
+                .build();
+
         DataLakeServiceClientBuilder builder = new DataLakeServiceClientBuilder();
-        builder.credential(sharedKeyCredential);
-        //builder.endpoint("https://" +"loadnow@"+ accountName + ".dfs.core.windows.net");
-        builder.endpoint("https://dlsazewddatalakeraw.blob.core.windows.net");
+        builder.credential(tokenCredential);
+        //builder.credential(sharedKeyCredential);
+        builder.endpoint("https://" + accountName + ".dfs.core.windows.net");
         DataLakeServiceClient dataLakeServiceClient = builder.buildClient();
         return dataLakeServiceClient;
     }
